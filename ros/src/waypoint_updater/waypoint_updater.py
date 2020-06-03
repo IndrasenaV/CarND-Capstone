@@ -39,8 +39,8 @@ class WaypointUpdater(object):
         self.base_waypoints = None
         self.pose = None
         self.waypoints_2d = None
-        self.waypoint_tree = None       
-        
+        self.waypoint_tree = None
+
         self.loop()
 
 
@@ -107,7 +107,7 @@ class WaypointUpdater(object):
         for i in range(wp1, wp2+1):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
-        return dist        
+        return dist
 
 
 if __name__ == '__main__':
