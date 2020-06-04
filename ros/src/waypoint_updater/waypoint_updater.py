@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 from scipy.spatial import KDTree
 import numpy as np
+from std_msgs.msg import Int32
 
 import math
 
@@ -22,9 +23,9 @@ as well as to verify your TL classifier.
 
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
-
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-
+CRUISE_SPEED = 11.1111 # m/s
+LOOKAHEAD_WPS = 100 # Number of waypoints we will publish. You can change this number
+BUFFER_TRAFFIC_LIGHT_WPS = 10 # Number of waypoints that car needs to stop in front of a red light
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -32,6 +33,8 @@ class WaypointUpdater(object):
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        rospy.Subscriber('/tl_color', Int32, self.tl_color_cb) # 0:red, 1:yellow, 2:green
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
@@ -40,6 +43,8 @@ class WaypointUpdater(object):
         self.pose = None
         self.waypoints_2d = None
         self.waypoint_tree = None
+        self.traffic_light_wp_idx = -1
+        self.traffic_light_color = -1
 
         self.loop()
 
@@ -84,22 +89,42 @@ class WaypointUpdater(object):
     def publish_waypoints(self):
         lane = Lane()
         closest_idx = self.get_closest_waypoint_idx()
-        farthest_idx = closest_idx + LOOKAHEAD_WPS
-        lane.waypoints = self.base_waypoints.waypoints[closest_idx:farthest_idx]
+        light_ahead_wps = self.traffic_light_wp_idx - closest_idx
+
+        # Red light too close, emergency brake
+        if self.traffic_light_wp_idx > 0 and light_ahead_wps < BUFFER_TRAFFIC_LIGHT_WPS and self.traffic_light_color == 0:
+            lane.waypoints = self.base_waypoints.waypoints[closest_idx:self.traffic_light_wp_idx]
+            for wp in lane.waypoints:
+                self.set_waypoint_velocity(wp, 0.0)
+
+        # Slow down due to a detected red or yellow light
+        elif self.traffic_light_wp_idx > 0 and light_ahead_wps < LOOKAHEAD_WPS:
+            lane.waypoints = self.base_waypoints.waypoints[closest_idx:self.traffic_light_wp_idx]
+            lowered_speed = float(light_ahead_wps/float(LOOKAHEAD_WPS)*CRUISE_SPEED)
+            for wp in lane.waypoints:
+                self.set_waypoint_velocity(wp, lowered_speed)
+
+        # Cruise
+        else:
+            farthest_idx = closest_idx + LOOKAHEAD_WPS
+            lane.waypoints = self.base_waypoints.waypoints[closest_idx:farthest_idx]
+            for wp in lane.waypoints:
+                self.set_waypoint_velocity(wp, CRUISE_SPEED)
+
         self.final_waypoints_pub.publish(lane)
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
-        self.stopline_wp_idx = msg.data
+        self.traffic_light_wp_idx = msg.data
 
-    def obstacle_cb(self, msg):
-        pass
+    def tl_color_cb(self, msg):
+        self.traffic_light_color = int(msg.data)
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
 
-    def set_waypoint_velocity(self, waypoints, waypoint, velocity):
-        waypoints[waypoint].twist.twist.linear.x = velocity
+    def set_waypoint_velocity(self, waypoint, velocity):
+        waypoint.twist.twist.linear.x = velocity
 
     def distance(self, waypoints, wp1, wp2):
         dist = 0
