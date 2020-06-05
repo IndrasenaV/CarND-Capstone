@@ -1,4 +1,67 @@
+# Introduction
 This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
+
+<p align="left">
+  <img  src="demo_images/capstone.gif">
+</p>
+
+## The Team
+
+| Role | Name | Responsibility  | E-mail |
+| ----------- |-------------| -----| -----|
+| Team Lead | [Paul Yeh](https://github.com/paulyehtw) | Implement classifier, waypoint updater | pyeh.tw@icloud.com |
+| Team Member | [Kamiar Kordari](https://github.com/kamiarkordari) | Implement traffic light detector | kordari@gmail.com |
+| Team Member | [Abhishek Patil](https://github.com/apatil5) | Implement Drive-by-Wire node | apatil5@mtu.edu |
+| Team Member | [Varun Pradeep Duraisamy](https://github.com/d2911) | Code testing | varun2911pradeep@gmail.com |
+| Team Member | [Xiaowen Liu](https://github.com/xiaowennn) | Code testing | lxiaowen@umich.edu |
+
+---
+
+# Project Overview
+In project, ROS is used to implement core functionality of the autonomous vehicle system, including **traffic light detection, control, and waypoint following**! The code is tested using a simulator to be run on Carla real car.
+
+The following is a system architecture diagram showing the ROS nodes and topics used in the project.
+<p align="center">
+  <img  src="demo_images/ros_graph.png">
+</p>
+
+Three main implementations for this project are : 
+1. `tl_detector.py` and `tl_classifier.py` for perception
+2. `waypoint_updater.py` for planning
+3. `dbw_node.py` for control
+
+### Perception
+**Traffic Light Detector Node** is responsible for detecting traffic light's color and location.
+For this to work, we need to first classify the color of traffic lights, **Single Shot Detector algorithm with MobileNet** is utilized.
+The architecture is shown as below:
+<p align="center">
+  <img  src="demo_images/ssd_mobilnet.png">
+</p>
+
+With this [Object Detection Lab](https://github.com/udacity/CarND-Object-Detection-Lab), some pretrained models are available to detect objects. We use the images from simulator and rosbags recorded by Carla to test traffic light detection as below:
+<p align="center">
+  <img  src="demo_images/sim_ssd.gif">
+</p>
+<p align="center"><b>Simulator scene</b></p>
+
+
+<p align="center">
+  <img  src="demo_images/carla_ssd.gif">
+</p>
+<p align="center"><b>Carla rosbag</b></p>
+
+As we can see, those pretrained models has many classes and not designed for this specific scenario, thus only red (sometimes yellow) light is detected.
+
+However, [this repo](https://github.com/timothylimyl/Custom-Traffic-Light-State-Detector) has trained a traffic light detector with [COCO dataset](http://cocodataset.org/#explore) for this project, so it is good to use it for our project.
+
+After we have the color of traffic light, we can associate the pose of traffic light with the closest waypoint then publish it.
+
+### Planning
+### Control
+
+
+---
+# Installation and running the code
 
 Please use **one** of the two installation options, either native **or** docker installation.
 
