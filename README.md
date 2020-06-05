@@ -52,12 +52,45 @@ With this [Object Detection Lab](https://github.com/udacity/CarND-Object-Detecti
 
 As we can see, those pretrained models has many classes and not designed for this specific scenario, thus only red (sometimes yellow) light is detected.
 
-However, [this repo](https://github.com/timothylimyl/Custom-Traffic-Light-State-Detector) has trained a traffic light detector with [COCO dataset](http://cocodataset.org/#explore) for this project, so it is good to use it for our project.
+However, [this repo](https://github.com/timothylimyl/Custom-Traffic-Light-State-Detector) has trained a traffic light detector with [COCO dataset](http://cocodataset.org/#explore) for this project, so it is ideal to just use it.
 
 After we have the color of traffic light, we can associate the pose of traffic light with the closest waypoint then publish it.
 
 ### Planning
+In `waypoint_updater.py`, it loads map waypoints(`/base_waypoints`) first, then gets car(`/current_pose`) and traffic light(`/traffic_waypoint`) poses.
+
+In `publish_waypoints()`, it sets different speed due to different use cases:
+```
+def publish_waypoints(self):
+    lane = Lane()
+    closest_idx = self.get_closest_waypoint_idx()
+    light_ahead_wps = self.traffic_light_wp_idx - closest_idx
+
+    # Red light too close, emergency brake
+    if self.traffic_light_wp_idx > 0 and light_ahead_wps < BUFFER_TRAFFIC_LIGHT_WPS and self.traffic_light_color == 0:
+        lane.waypoints = self.base_waypoints.waypoints[closest_idx:self.traffic_light_wp_idx]
+        for wp in lane.waypoints:
+            self.set_waypoint_velocity(wp, 0.0)
+
+    # Slow down due to a detected red or yellow light
+    elif self.traffic_light_wp_idx > 0 and light_ahead_wps < LOOKAHEAD_WPS:
+        lane.waypoints = self.base_waypoints.waypoints[closest_idx:self.traffic_light_wp_idx]
+        lowered_speed = float(light_ahead_wps/float(LOOKAHEAD_WPS)*CRUISE_SPEED)
+        for wp in lane.waypoints:
+            self.set_waypoint_velocity(wp, lowered_speed)
+
+    # Cruise
+    else:
+        farthest_idx = closest_idx + LOOKAHEAD_WPS
+        lane.waypoints = self.base_waypoints.waypoints[closest_idx:farthest_idx]
+        for wp in lane.waypoints:
+            self.set_waypoint_velocity(wp, CRUISE_SPEED)
+
+    self.final_waypoints_pub.publish(lane)
+```
+
 ### Control
+In `dbw_node.py`, it sends the steering(`yaw_controller`) and speed(`twist_controller`) commands to the car.
 
 
 ---
